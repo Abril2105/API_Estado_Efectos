@@ -21,16 +21,16 @@ function App() {
     const additionalUsers = users.slice(startIndex, endIndex);
     setVisibleUsers([...visibleUsers, ...additionalUsers]);
     setPage(page + 1);
-    setShowAllUsers(true); // Mostrar el botón "Ver más" cuando se cargan más usuarios
+    setShowAllUsers(true); 
   };
 
   const toggleShowUsers = () => {
     if (showAllUsers) {
       setVisibleUsers(users.slice(0, 6));
-      setShowAllUsers(false); // Ocultar el botón "Ver más" cuando se presiona "Ver menos"
+      setShowAllUsers(false); 
     } else {
       setVisibleUsers(users);
-      setShowAllUsers(true); // Mostrar el botón "Ver más" cuando se presiona "Ver menos"
+      setShowAllUsers(true); 
     }
   };
 
@@ -64,4 +64,3 @@ function App() {
 }
 
 export default App;
-
