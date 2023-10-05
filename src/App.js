@@ -1,63 +1,146 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useAppContext, actionTypes } from './AppContext';
+var sanitizeUrl = require("@braintree/sanitize-url").sanitizeUrl;
 
 function App() {
-  const [users, setUsers] = useState([]);
-  const [visibleUsers, setVisibleUsers] = useState([]);
-  const [page, setPage] = useState(1);
-  const [showAllUsers, setShowAllUsers] = useState(false);
+  const { state, dispatch } = useAppContext();
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [cart, setCart] = useState([]);
+  const [showCart, setShowCart] = useState(false);
 
   useEffect(() => {
-    fetch(`https://fakestoreapi.com/users?limit=10`)
+    fetch(`https://fakestoreapi.com/products?limit=10`)
       .then((res) => res.json())
       .then((data) => {
-        setUsers(data);
-        setVisibleUsers(data.slice(0, 6));
+        setTotalProducts(data.length); // Guarda el número total de productos
+        dispatch({ type: actionTypes.SET_PRODUCTS, payload: data });
+        dispatch({ type: actionTypes.SET_FILTERED_PRODUCTS, payload: data.slice(0, 6) });
       });
-  }, []);
+  }, [dispatch]);
 
-  const loadMoreUsers = () => {
-    const startIndex = visibleUsers.length;
-    const endIndex = startIndex + 6;
-    const additionalUsers = users.slice(startIndex, endIndex);
-    setVisibleUsers([...visibleUsers, ...additionalUsers]);
-    setPage(page + 1);
-    setShowAllUsers(true); 
+  const addToCart = (product) => {
+    setCart([...cart, product]);
   };
 
-  const toggleShowUsers = () => {
-    if (showAllUsers) {
-      setVisibleUsers(users.slice(0, 6));
-      setShowAllUsers(false); 
-    } else {
-      setVisibleUsers(users);
-      setShowAllUsers(true); 
+  const loadMoreProducts = () => {
+    const startIndex = state.filteredProducts.length;
+    let endIndex = startIndex + 10;
+
+    // Verifica si el endIndex excede el número total de productos disponibles
+    if (endIndex > totalProducts) {
+      endIndex = totalProducts;
     }
+
+    const additionalProducts = state.products.slice(startIndex, endIndex);
+    dispatch({ type: actionTypes.SET_FILTERED_PRODUCTS, payload: [...state.filteredProducts, ...additionalProducts] });
+  };
+
+  const toggleShowProducts = () => {
+    if (state.showAllProducts) {
+      console.log('Mostrar menos');
+      dispatch({ type: actionTypes.SET_SHOW_ALL_PRODUCTS, payload: false });
+    } else {
+      console.log('Mostrar más');
+      dispatch({ type: actionTypes.SET_SHOW_ALL_PRODUCTS, payload: true });
+    }
+  };
+  
+
+  const handleCategoryChange = (event) => {
+    const selectedCategory = event.target.value;
+    dispatch({ type: actionTypes.SET_CATEGORY, payload: selectedCategory });
+  };
+
+  const handleCategoryFilter = () => {
+    if (state.filterCategory === '') {
+      dispatch({ type: actionTypes.SET_FILTERED_PRODUCTS, payload: state.products });
+    } else {
+      const categoryUrls = {
+        electronics: 'https://fakestoreapi.com/products/category/electronics',
+        jewelery: 'https://fakestoreapi.com/products/category/jewelery',
+        "mem's clothing": sanitizeUrl("https://example.com"),
+        "men's clothing": 'https://fakestoreapi.com/products/category/men%27s%20clothing', 
+      };
+
+      fetch(categoryUrls[state.filterCategory])
+        .then((res) => res.json())
+        .then((data) => {
+          setTotalProducts(data.length); // Actualiza el número total de productos
+          dispatch({ type: actionTypes.SET_FILTERED_PRODUCTS, payload: data });
+          dispatch({ type: actionTypes.SET_CATEGORY, payload: state.filterCategory });
+          dispatch({ type: actionTypes.SET_SHOW_ALL_PRODUCTS, payload: false });
+        })
+        .catch((error) => {
+          console.error('Error al cargar productos de la categoría:', error);
+        });
+    }
+  };
+
+  const toggleCart = () => {
+    setShowCart(!showCart);
+  };
+
+  const renderCart = () => {
+    return (
+      <div className="cart">
+        <h2>Carrito de Compras</h2>
+        {cart.length === 0 ? (
+          <p>El carrito está vacío</p>
+        ) : (
+          <ul>
+            {cart.map((item) => (
+              <li key={item.id}>
+                {item.title} - ${item.price}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
   };
 
   return (
     <div>
-      <h1>Lista de Usuarios</h1>
+      <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+        <button onClick={toggleCart}>Carrito ({cart.length})</button>
+      </div>
+      <h1>Lista de Productos</h1>
+      <div>
+        <label htmlFor="category">Filtrar por categoría: </label>
+        <select
+          id="category"
+          value={state.filterCategory}
+          onChange={handleCategoryChange}
+        >
+          <option value="">Todas las categorías</option>
+          <option value="electronics">Electrónicos</option>
+          <option value="jewelery">Joyas</option>
+          <option value="men's clothing">Ropa para Hombres</option>
+        </select>
+        <button onClick={handleCategoryFilter}>Filtrar</button>
+      </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-        {visibleUsers.map((user) => (
-          <div key={user.id} style={{ width: 'calc(33.33% - 20px)', marginBottom: '20px', border: '1px solid #ccc', padding: '10px', boxSizing: 'border-box' }}>
-            <p>Nombre: {user.name.firstname} {user.name.lastname}</p>
-            <p>Correo: {user.email}</p>
-            <p>User Name: {user.username}</p>
-            <p>Ciudad: {user.address.city}</p>
-            <p>Calle: {user.address.street}</p>
-            <p>Número: {user.address.number}</p>
-            <p>Zipcode: {user.address.zipcode}</p>
-            <p>Teléfono: {user.phone}</p>
+        {state.filteredProducts.map((product) => (
+          <div key={product.id} style={{ width: 'calc(33.33% - 20px)', marginBottom: '20px', border: '1px solid #ccc', padding: '10px', boxSizing: 'border-box' }}>
+            <p>Nombre: {product.title}</p>
+            <p>Precio: ${product.price}</p>
+            <p>Categoría: {product.category}</p>
+            <p>Descripción: {product.description}</p>
+            <button onClick={() => addToCart(product)}>Agregar al carrito</button>
           </div>
         ))}
-      </div >
+      </div>
       <div style={{ display: 'flex', justifyContent: 'center' }}>
-        {!showAllUsers && (
-          <button onClick={loadMoreUsers}>Ver Más</button>
+        {!state.showAllProducts && (
+          <button onClick={loadMoreProducts}>Ver Más</button>
         )}
-        {showAllUsers && (
-          <button onClick={toggleShowUsers}>Ver menos</button>
+        {state.showAllProducts && (
+          <button onClick={toggleShowProducts}>Ver menos</button>
         )}
+      </div>
+      {showCart && renderCart()}
+      <div className="user-circle">
+        <p>JA</p>
       </div>
     </div>
   );
